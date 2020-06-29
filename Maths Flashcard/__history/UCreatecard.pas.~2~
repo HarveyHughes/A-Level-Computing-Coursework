@@ -1,0 +1,163 @@
+unit UCreatecard;
+
+interface
+
+uses
+Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, generics.collections,
+  Vcl.StdCtrls;
+
+type
+Tcreatemenu=class
+ private
+ public
+ Menu,favpanel:tpanel;
+ Typ:array [1..4] of tradiobutton;
+ fav:array[1..2] of tradiobutton;
+ Lables:tobjectlist<tlabel>;
+ buttons:tobjectlist<tbutton>;
+ Edits:tobjectlist<tedit>;
+ constructor create(panel:tpanel);
+ Procedure CreateButton(Top, left, Width, height: integer; caption: string;
+      click: tnotifyevent);
+    Procedure CreateEdit(Top, left, Width, height: integer; caption: string);
+     Procedure CreateLabel(Top, left, Width, height, size: integer;
+      caption: string);
+      procedure createform(sender : tobject);
+      procedure oncreate(sender:tobject);
+ destructor free;
+end;
+
+implementation
+
+{ Tcreatemenu }
+
+uses UDM;
+
+constructor Tcreatemenu.create(panel: tpanel);
+var
+i:integer;
+begin
+  menu := tpanel.create(Panel);
+  menu.Parent := Panel;
+  menu.left := 50;
+  menu.width := panel.Width-100;
+  menu.top := 50;
+  menu.height := panel.Height-100;
+  menu.Visible := true;
+  menu.Parentbackground := false;
+  menu.Color := clmenu;
+  menu.Visible := true;
+
+  Createlabel(20,(menu.Width-20) div 2,50,30,10,'Create Card');
+  createlabel(menu.height div 6,30,70,20,9,'What Kind of Flashcard?');
+  for I := 1 to 4 do
+   begin
+     typ[i] := tradiobutton.create(menu);
+  typ[i].Parent := menu;
+  typ[i].height := 20;
+  typ[i].top := menu.height div 6  + 25 ;
+  typ[i].width := 20;
+  typ[i].left := (menu.width div 5) * i;
+  typ[i].Visible := true;
+  typ[i].OnClick:=createform;
+  case i of
+   1:typ[i].Caption := 'Regular Card';
+   2:typ[i].Caption := 'Options Card';
+   3:typ[i].Caption := 'Graph Card';
+   4:typ[i].Caption := 'Options Graph Card';
+  end;
+   end;
+ createlabel(menu.height div 6 *5,30,70,20,9,'Favourite this card');
+  favpanel := tpanel.create(menu);   //so that the fav option is a different radio group
+   favpanel.Parent := menu;
+   favpanel.left := 30;
+   favpanel.width := menu.Width div 2;
+   favpanel.top :=menu.height div 6 *5 +25;
+   favpanel.height := menu.Height-(favpanel.Top+30);
+   favpanel.Visible := true;
+  favpanel.Visible := true;
+  for I := 1 to 2 do
+   begin
+     fav[i] := tradiobutton.create(favpanel);
+  fav[i].Parent := favpanel;
+  fav[i].height := 20;
+  fav[i].top := favpanel.height div 2  -10;
+  fav[i].width := 20;
+  fav[i].left := (favpanel.width div 3) * i;
+  fav[i].Visible := true;
+  case i of
+   1:typ[i].Caption := 'Yes';
+   2:typ[i].Caption := 'No';
+  end;
+   end;
+
+   createbutton(menu.height div 6 *5 +25,menu.Width-80,50,30,'Create',Oncreate);
+
+end;
+
+
+
+procedure Tcreatemenu.CreateButton(Top, left, Width, height: integer;
+  caption: string; click: tnotifyevent);
+var
+  B: TButton;
+begin
+  B := TButton.Create(Menu);
+  buttons.add(B);
+  B.Parent := Menu;
+  B.Top := Top;
+  B.left := left;
+  B.Width := Width;
+  B.height := height;
+  B.caption := caption;
+  B.Visible := true;
+  B.onclick := click;
+end;
+
+procedure Tcreatemenu.CreateEdit(Top, left, Width, height: integer;
+  caption: string);
+var
+  E: tedit;
+begin
+  E := tedit.Create(menu);
+  edits.add(E);
+  E.Parent := Menu;
+  E.Top := Top;
+  E.left := left;
+  E.Width := Width;
+  E.height := height;
+  E.text := caption;
+  E.Visible := true;
+  E.Enabled := true;
+end;
+
+procedure Tcreatemenu.createform(sender: tobject);
+begin
+
+end;
+
+procedure Tcreatemenu.CreateLabel(Top, left, Width, height, size: integer;
+  caption: string);
+var
+  l: TLabel;
+begin
+  l := TLabel.Create(menu);
+  lables.add(l);
+  l.Parent := menu;
+  l.Top := Top;
+  l.left := left;
+  l.Width := Width;
+  l.height := height;
+  l.WordWrap := true;
+  l.caption := caption;
+  l.Visible := true;
+end;
+
+destructor Tcreatemenu.free;
+begin
+
+end;
+
+end.

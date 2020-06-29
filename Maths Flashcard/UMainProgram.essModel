@@ -1,0 +1,142 @@
+[Diagram:]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+
+[Box: ::<<Unknown>> - ::<<Unknown>>::TDataModule]
+X=225
+Y=40
+
+[Box: ::<<Unknown>> - ::<<Unknown>>::TForm]
+X=20
+Y=40
+
+[Diagram: ::<<Unknown>>]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+
+[Diagram:]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=1
+
+[Box:  - ::UBadges]
+X=240
+Y=125
+
+[Box:  - ::UCreatecard]
+X=445
+Y=125
+
+[Box:  - ::UdeckPicker]
+X=861
+Y=295
+
+[Box:  - ::UDM]
+X=20
+Y=40
+
+[Box:  - ::Uflashcard]
+X=536
+Y=210
+
+[Box:  - ::Ugraph]
+X=366
+Y=295
+
+[Box:  - ::UMainProgram]
+X=658
+Y=40
+
+[Box:  - ::UMainstats]
+X=870
+Y=125
+
+[Box:  - ::UOptionsmenu]
+X=1075
+Y=125
+
+[Diagram:]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=1
+
+[Box: ::UMainstats - ::UdeckPicker::TDecks]
+X=238
+Y=23
+
+[Box: ::UMainstats - ::UMainstats::mainstats]
+X=20
+Y=50
+
+[Diagram: ::UMainstats]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=1
+
+[Box: ::Uflashcard - ::Uflashcard::ratings]
+X=14
+Y=196
+
+[Box: ::Uflashcard - ::Uflashcard::tcardstats]
+X=430
+Y=40
+
+[Box: ::Uflashcard - ::Uflashcard::tcopy]
+X=429
+Y=300
+
+[Box: ::Uflashcard - ::Uflashcard::Tfav]
+X=9
+Y=327
+
+[Box: ::Uflashcard - ::Uflashcard::tflashback]
+X=20
+Y=40
+
+[Box: ::Uflashcard - ::Uflashcard::TFlashcard]
+X=635
+Y=40
+
+[Box: ::Uflashcard - ::Uflashcard::Toption]
+X=222
+Y=340
+
+[Box: ::Uflashcard - ::Uflashcard::tpan]
+X=225
+Y=40
+
+[Box: ::Uflashcard - ::Uflashcard::Tuserrating]
+X=226
+Y=194
+
+[Diagram: ::Uflashcard]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+
+[Box: ::Ugraph - ::Ugraph::Tfunction]
+X=225
+Y=40
+
+[Box: ::Ugraph - ::Ugraph::TGraph]
+X=20
+Y=40
+
+[Box: ::Ugraph - ::Ugraph::tpoly]
+X=231
+Y=219
+
+[Diagram: ::Ugraph]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+

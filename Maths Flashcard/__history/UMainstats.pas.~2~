@@ -1,0 +1,109 @@
+unit UMainstats;
+
+interface
+
+
+uses
+ Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.DateUtils,
+  System.Classes, Vcl.Graphics,udeckpicker,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, generics.collections,
+  Vcl.StdCtrls;
+
+ type
+ mainstats=class
+    Lables: tobjectlist<tlabel>;
+    Card:tdecks;
+    buttons: tobjectlist<tbutton>;
+    Edits: tobjectlist<tedit>;
+    constructor create(panel:tpanel);
+    Procedure CreateButton(Top, left, Width, height: integer; caption: string;
+      click: tnotifyevent);
+    Procedure CreateEdit(panel: tpanel; Top, left, Width, height: integer;
+      caption: string; ali: char);
+    Procedure CreateLabel(Top, left, Width, height, size: integer;
+      caption: string; ali: char);
+    procedure getcardstats(var prog,cards,CORRECTSTREAK,currentstreak,badges:string; var numbers:ratingstats);
+ end;
+
+implementation
+
+uses UDM;
+
+{ mainstats }
+
+procedure mainstats.getcardstats(var prog, cards,CORRECTSTREAK,currentstreak,badges: string;
+  var numbers: ratingstats);
+  var
+  n:integer;
+begin
+with dm.achievementset do
+begin
+close;
+ CommandText := 'Select * from Achievements';
+ open;
+ prog:=inttostr(fieldvalues['Userknowledge']) +'%';
+ cards:=inttostr(fieldvalues['Cardsseen'])+ 'cards seen';
+ correctstreak:='Max Correct streak is ' + inttostr(fieldvalues['Correctstreak'])+' cards';
+ currentstreak:= 'Current Correct streak is ' + inttostr(fieldvalues['Currentstreak'])+' cards';
+ badges:='Badges unlocked is ' + inttostr(fieldvalues['Achivements']) + ' Cards, out of  ' + inttostr(fieldvalues['badges'])    ;
+end;
+
+
+    for n := 1 to 5 do
+     numbers[n]:=0;
+
+
+    with dm.cardset do
+    begin
+      Close;
+      CommandText := 'Select Userrating from card';
+      open;
+      first;
+      while not eof do
+      begin
+      n := FieldValues['Userrating'];
+      if n <> 0 then
+        numbers[n] := numbers[n] + 1;
+      end;
+    end;
+
+
+
+
+end;
+
+
+
+
+constructor mainstats.create(panel: tpanel);
+var
+numbers:ratingstats;
+prog,cards,correctstreak:string;
+begin
+getcardstats(prog,cards,numbers);
+card:=tdecks.create(panel,3,2,0,50,'Overall Stats',prog,cards,numbers);
+
+end;
+
+procedure mainstats.CreateButton(Top, left, Width, height: integer;
+  caption: string; click: tnotifyevent);
+begin
+
+end;
+
+procedure mainstats.CreateEdit(panel: tpanel; Top, left, Width, height: integer;
+  caption: string; ali: char);
+begin
+
+end;
+
+procedure mainstats.CreateLabel(Top, left, Width, height, size: integer;
+  caption: string; ali: char);
+begin
+
+end;
+
+
+
+end.

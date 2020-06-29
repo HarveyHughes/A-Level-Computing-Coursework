@@ -1,0 +1,28 @@
+[Diagram:]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+
+[Box:  - ::UdeckPicker]
+X=225
+Y=125
+
+[Box:  - ::UDM]
+X=327
+Y=40
+
+[Box:  - ::Uflashcard]
+X=122
+Y=40
+
+[Box:  - ::Ugraph]
+X=20
+Y=125
+
+[Diagram: ]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+

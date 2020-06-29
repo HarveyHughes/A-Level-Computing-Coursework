@@ -1,0 +1,1285 @@
+unit Ugraph;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.DateUtils, System.Math,
+  System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, generics.collections,
+  Vcl.StdCtrls;
+
+type
+  Alables = array [1 .. 21] of tlabel;
+
+  tpoly = class
+    coefficent: real;
+    power: real;
+    constructor create(c, p: real);
+  end;
+
+  Tfunction = class
+    Func: string;
+    Poly: tobjectlist<tpoly>;
+    coef: real;
+    Complextfunc: tobjectlist<Tfunction>;
+    Next: char;
+    constructor create(funct, e: string; N: char; c: real);
+    function stringtopoly(equation: string): tobjectlist<tpoly>;
+  end;
+
+  ycoef = array [1 .. 2] of real; // colum 1 is coef of y, 2 is +/-
+
+  TGraph = class
+  private { Private declarations }
+  public { Public declarations }
+    G: TImage;
+    X, Y: Alables;
+    W, H, L, Top, miny, minx, Xax, Yax, lines: integer;
+    eq: tobjectlist<Tfunction>;
+    constructor create(Func: string; yc: ycoef; card: tpanel;
+      wid, hei, t, left: integer); overload;
+    procedure draw(e: string; yc: ycoef);
+    function runequation(e: tobjectlist<Tfunction>; X: real;
+      pos: integer): real;
+    destructor free;
+  end;
+
+function findstring(i, funclength: integer; e: string): string;
+function getinteger(startpos, endpos: integer; s: string): real;
+function findcoef(i: integer; e: string): real;
+function findpower(i: integer; e: string): real;
+function removex(s: string): real;
+function getycoef(var e: string): ycoef;
+function DeleteSpaces(Str: string): string;
+
+implementation
+
+function getycoef(var e: string): ycoef;
+var
+  i, j, Y: integer;
+  t: string;
+begin
+  i := 1;
+  t := '';
+  repeat
+    e := uppercase(e);
+    t := t + e[i];
+    if e[i] = 'Y' then
+      Y := i;
+    i := i + 1;
+  until (e[i] = '=') or (i = length(e) + 1);
+  result[1] := findcoef(Y, e);
+  result[2] := removex(t);
+  t := '';
+
+  for j := i + 1 to length(e) do
+    t := t + e[j];
+  e := t;
+
+end;
+
+{ TGraph }
+
+function polytoreal(X: real; p: tobjectlist<tpoly>): real;
+var
+  i: integer;
+  temp: real;
+begin
+  result := 0;
+  for i := 0 to p.count - 1 do
+  begin
+    if X >= 0 then
+      result := result + p[i].coefficent * power(X, p[i].power)
+    else
+    begin
+      temp := p[i].power - int(p[i].power);
+      if temp = 0 then
+        result := result + p[i].coefficent * power(X, p[i].power)
+      else
+        result := -1000000; // so it doesnt appear
+    end;
+
+  end;
+end;
+
+function findstring(i, funclength: integer; e: string): string;
+var
+  j, bcount: integer;
+begin
+  result := '';
+  if e[i] = '|' then // for the modulus
+  begin
+    j := i + funclength;
+    while (e[j] <> '|') and (j <= length(e)) do
+    begin
+      result := result + e[j];
+      j := j + 1;
+    end;
+  end
+  else
+  begin
+    if e[i + funclength] = '(' then // for everything else
+    begin
+      bcount := 1;
+      j := i + funclength + 1;
+      while (bcount >= 1) and (j <= length(e)) do
+      begin
+
+        if e[j] = '(' then
+          bcount := bcount + 1; // kepps bracet count
+        if e[j] = ')' then
+          bcount := bcount - 1;
+
+        if bcount > 0 then // makes sure the last bracket isnt added
+          result := result + e[j];
+
+        j := j + 1;
+      end;
+    end;
+  end;
+end;
+
+function getinteger(startpos, endpos: integer; s: string): real;
+var
+  i, dividepos, div1, div2: integer;
+  temp, divtemp1, divtemp2: string;
+  divide, point: boolean;
+begin
+  temp := '';
+  point := false;
+  for i := startpos to endpos do
+  begin
+    temp := temp + s[i];
+    if s[i] = '.' then
+      point := true;
+  end;
+  if point = true then
+    result := strtofloat(temp)
+  else
+  begin
+    divide := false;
+    for i := 1 to length(temp) do
+    begin
+      if temp[i] = '/' then
+      begin
+        divide := true;
+        dividepos := i;
+      end;
+    end;
+    if divide = true then // works out the real once divided
+    begin
+      divtemp1 := '';
+      divtemp2 := '';
+      for i := 1 to dividepos - 1 do
+        divtemp1 := divtemp1 + temp[i];
+      div1 := strtoint(divtemp1);
+      for i := dividepos + 1 to length(temp) do
+        divtemp2 := divtemp2 + temp[i];
+      div2 := strtoint(divtemp2);
+      result := div1 / div2;
+    end
+    else
+      result := strtoint(temp);
+  end;
+end;
+
+function findcoef(i: integer; e: string): real;
+var
+  j: integer;
+begin
+  j := i - 1;
+  if j > 0 then
+  begin
+    if (e[j] = '+') or (e[j] = '-') or (e[j] = '*') then
+    begin
+      if (e[j] = '+') or (e[j] = '*') then
+        result := 1
+      else
+        result := -1;
+    end
+    else
+    begin
+      while (j > 1) and (((ord(e[j]) <= 57) and (ord(e[j]) >= 48)) or
+        ((e[j] = '/') and (j <> i - 1)) or (e[j] = '.')) do
+      begin // loops through until the number ends
+        j := j - 1;
+      end;
+      if (e[j] <> '/') and (e[j] <> '*') then // makes sure 1/x will work
+        result := getinteger(j, (i - 1), e)
+      else if (e[j] = '/') and (j = i - 1) then
+        result := 1
+      else
+        result := getinteger(j + 1, (i - 1), e);
+
+      if (j - 1) > 0 then
+      begin
+        if e[j - 1] = '-' then
+          result := result * (-1);
+      end;
+    end;
+  end
+  else
+    result := 1;
+end;
+
+function getnext(i, funclength: integer; e: string; var finish: integer): char;
+var
+  j: integer;
+begin
+  j := i + funclength; // goes to ed of function
+  result := 'n';
+
+  while (j <= length(e)) and (result = 'n') do
+  begin
+    if (e[j] = ' ') or (e[j] = '^') or (e[j] = '.') or
+      ((e[j] = '/') and ((ord(e[j + 1]) <= 57) and (ord(e[j + 1]) >= 48))) or
+      ((ord(e[j]) <= 57) and (ord(e[j]) >= 48))
+    // contiue if its an integer or symol
+    then
+      j := j + 1
+    else
+    begin
+      case ord(e[j]) of
+        43:
+          result := '+';
+        45:
+          result := '-';
+        42:
+          result := '*';
+        47:
+          result := '/';
+      end;
+    end;
+  end;
+  finish := j;
+  if result = 'n' then
+  begin
+    result := '#';
+    finish := length(e);
+  end;
+
+end;
+
+function getnexte(i, funclength: integer; e: string; var finish: integer): char;
+var
+  j: integer;
+begin
+  j := i + funclength; // goes to ed of function
+  result := 'n';
+
+  while (j <= length(e)) and (result = 'n') do
+  begin
+    if (e[j] = ' ') or (e[j] = '^') or ((ord(e[j]) <= 57) and (ord(e[j]) >= 48))
+    // contiue if its an integer or symol
+    then
+      j := j + 1
+    else
+    begin
+      if ((ord(e[j + 1]) >= 57) or (ord(e[j + 1]) <= 48)) and
+        ((ord(e[j - 1]) >= 57) or (ord(e[j - 1]) <= 48)) and (e[j] <> '/') then
+      // so that x^3/2 etc doesnt trip it
+      begin
+        case ord(e[j]) of
+          43:
+            result := '+';
+          45:
+            result := '-';
+          42:
+            result := '*';
+          47:
+            result := '/';
+        end;
+      end
+      else
+        j := j + 1;
+    end;
+  end;
+  finish := j;
+  if result = 'n' then
+  begin
+    result := '#';
+    finish := length(e);
+  end;
+end;
+
+function findpower(i: integer; e: string): real;
+var
+  j: integer;
+  minus: boolean;
+begin
+  j := i + 1;
+  minus := false;
+  if j <= length(e) then
+  begin
+    if e[j] <> '^' then // shows its only X
+      result := 1
+    else
+    begin
+      j := i + 2;
+      if e[j] = '-' then
+      begin // gets it if its ^ -number
+        minus := true;
+        i := i + 1; // so the getinteger works
+        j := j + 1;
+      end;
+
+      while (j < length(e)) and (((ord(e[j]) <= 57) and (ord(e[j]) >= 48)) or
+        (e[j] = '/') or (e[j] = '.')) do
+      begin // loops through until the number ends
+        j := j + 1;
+      end;
+
+      if (e[j] = '+') or (e[j] = '-') then
+        j := j - 1;
+      result := getinteger(i + 2, j, e);
+      if minus = true then
+        result := result * -1;
+
+    end;
+
+  end
+  else
+    result := 1;
+end;
+
+function ispolynomial(e: string): boolean;
+var
+  i: integer;
+begin
+  result := true;
+  for i := 1 to length(e) do
+  begin
+    if (e[i] = 'S') or (e[i] = 'I') or (e[i] = 'N') or (e[i] = 'C') or
+      (e[i] = 'O') or (e[i] = 'E') or (e[i] = 'T') or (e[i] = 'A') or
+      (e[i] = '|') or (e[i] = '(') or (e[i] = ')') or (e[i] = 'L') or
+      (e[i] = 'G') then
+      // checks if it has sin,cos,etc in it.
+      result := false;
+    if e[i] = '^' then // checks its not an exponential
+    begin
+      if e[i - 1] <> 'X' then
+        result := false;
+    end;
+  end;
+end;
+
+function removex(s: string): real;
+var
+  temp: string;
+  j, i, endpos: integer;
+  positions, untouchedpos: tlist<integer>;
+  contains: boolean;
+begin
+  positions := tlist<integer>.create;
+  untouchedpos := tlist<integer>.create;
+  for j := 1 to length(s) do // gets the position of all non integernumbers
+  begin
+    if (s[j] = 'X') or (s[j] = 'Y') then // ifs its an x add to list
+    begin
+      positions.Add(j);
+      i := j + 1;
+      if i < length(s) then
+        while ((s[i] <> '+') and (s[i] <> '-')) and (i < length(s) + 1) do
+        begin // loops up through the text
+          positions.Add(i);
+          i := i + 1;
+        end;
+
+      i := j - 1;
+      if i > 0 then
+        while ((s[i] <> '+') and (s[i] <> '-')) and (i > 0) do
+        begin // loops down through the text
+          positions.Add(i);
+          i := i - 1;
+        end;
+    end;
+  end;
+
+  for j := 1 to length(s) do // gets all the untouched positions
+    if positions.contains(j) = false then
+      untouchedpos.Add(j);
+
+  contains := false;
+  if untouchedpos.count <> 0 then
+  // makes sure it doesnt do the next strep if all the equation is used
+  begin
+    for i := 0 to untouchedpos.count - 1 do
+    begin
+      if (ord(s[untouchedpos[i]]) <= 57) and (ord(s[untouchedpos[i]]) >= 48)
+      then
+      // its a number and a interger is present
+      begin
+        contains := true;
+        endpos := untouchedpos[i]; // gets the last position
+      end;
+    end;
+  end;
+
+  if contains = true then
+    result := findcoef(endpos + 1, s)
+  else
+    result := 0;
+end;
+
+function DeleteSpaces(Str: string): string;
+var
+  i: integer;
+begin
+  i := 0;
+  while i <= length(Str) do
+    if Str[i] = ' ' then
+      Delete(Str, i, 1)
+    else
+      Inc(i);
+  result := Str;
+end;
+
+function decodeequation(e: string; var eq: tobjectlist<Tfunction>): boolean;
+var
+  i, j, finish, bcount, pp: integer;
+  sect: string;
+  s: ycoef;
+  N: char;
+  c, p: real;
+  intf, intb: boolean;
+begin
+  result := true;
+
+  e := DeleteSpaces(e);
+
+  for i := 1 to length(e) do // changes the case of the string
+  begin
+    if (ord(e[i]) >= 97) and (ord(e[i]) <= 122) then // checks its lowercase
+      e[i] := upcase(e[i]);
+  end;
+
+  i := 1;
+  repeat
+    // for i := 1 to length(e) do // filling c with the numbers
+    // begin
+    case ord(e[i]) of
+      83: // S
+        begin // checks for sin and sec
+          if (length(e) - i) >= 5 then // checks theres room left in the string
+          begin
+            if ((e[i + 1] = 'I')) and ((e[i + 2] = 'N')) then
+            // checks it is sine
+            begin
+              sect := findstring(i, 3, e); // gets the function to apply sin to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 5 + length(sect), e, finish);
+              eq.Add(Tfunction.create('SIN', sect, N, c));
+              i := finish;
+            end
+            else if ((e[i + 1] = 'E')) and ((e[i + 2] = 'C')) then
+            // checks for sec
+            begin
+              if i <> 1 then // runs thorugh checking its not cosec
+              begin
+                if e[i - 1] <> 'O' then // checks its not cosec
+                begin
+                  sect := findstring(i, 3, e);
+                  // gets the function to apply sec to
+                  c := findcoef(i, e); // gets the coefficent
+                  N := getnext(i, 5 + length(sect), e, finish);
+                  eq.Add(Tfunction.create('SEC', sect, N, c));
+                  i := finish;
+                end;
+              end;
+              if i = 1 then // does the same if its at the start
+              begin
+                sect := findstring(i, 3, e);
+                // gets the function to apply sec to
+                c := findcoef(i, e); // gets the coefficent
+                N := getnext(i, 5 + length(sect), e, finish);
+                eq.Add(Tfunction.create('SEC', sect, N, c));
+                i := finish;
+              end;
+            end
+            else
+              result := false
+              // checks the equation is valid after checking for sin and sec
+          end
+          else
+            result := false;
+          // checks the equation is valid if its the wrong length
+          if i >= 3 then // switches result back to true if it was a cos
+          begin
+            if (e[i - 1] = 'O') and (e[i - 2] = 'C') then
+              result := true;
+          end;
+        end;
+      67: // C
+        begin
+          if (length(e) - i) >= 5 then
+          // its 3 as it needs to apply the funstion to something eq x
+          begin
+            if (e[i + 1] = 'O') and (e[i + 2] = 'S') and (e[i + 3] <> 'E') then
+            begin
+              sect := findstring(i, 3, e); // gets the function to apply cos to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 5 + length(sect), e, finish);
+              eq.Add(Tfunction.create('COS', sect, N, c));
+              i := finish;
+            end
+            else if ((e[i + 1] = 'O')) and ((e[i + 2] = 'T')) then
+            begin
+              sect := findstring(i, 3, e); // gets the function to apply cot to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 5 + length(sect), e, finish);
+              eq.Add(Tfunction.create('COT', sect, N, c));
+              i := finish;
+            end
+            else if ((length(e) - i) >= 7) and (e[i + 3] = 'E') and
+              (e[i + 4] = 'C') and (e[i + 1] = 'O') and (e[i + 2] = 'S') then
+            begin
+              sect := findstring(i, 5, e);
+              // gets the function to apply cosec to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 7 + length(sect), e, finish);
+              eq.Add(Tfunction.create('COSEC', sect, N, c));
+              i := finish;
+            end
+            else
+              result := false;
+            // if its not cot or cos and not 7 long then, and isnt sec
+          end
+          else
+            result := false; // checks the equation is valid due to length
+          if i >= 3 then
+          // switches result back to true if it was a sec or cosec
+          begin
+            if (e[i - 1] = 'E') and (e[i - 2] = 'S') then
+              result := true;
+          end;
+        end;
+      84: // T
+        begin
+          if (length(e) - i) >= 5 then // checks theres room left in the string
+          begin
+            if ((e[i + 1] = 'A')) and ((e[i + 2] = 'N')) then
+            // checks it is tan
+            begin
+              sect := findstring(i, 3, e); // gets the function to apply sin to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 5 + length(sect), e, finish);
+              eq.Add(Tfunction.create('TAN', sect, N, c));
+              i := finish;
+            end
+            else
+              result := false;
+          end
+          else
+            result := false;
+          if i >= 3 then // switches result back to true if it was a cot
+          begin
+            if (e[i - 1] = 'O') and (e[i - 2] = 'C') then
+              result := true;
+          end;
+        end;
+      124: // |
+        begin // checks for mod
+          sect := findstring(i, 1, e); // gets the function to apply mod to
+          c := findcoef(i, e); // gets the coefficent
+          N := getnext(i, 2 + length(sect), e, finish);
+          eq.Add(Tfunction.create('|', sect, N, c));
+          i := finish;
+        end;
+      76: // L
+        begin // checks for ln and log
+          if (length(e) - i) >= 4 then // checks theres room left in the string
+          begin
+            if (length(e) - i) >= 5 then
+            begin
+              if ((e[i + 1] = 'O')) and ((e[i + 2] = 'G')) then
+              // checks it is log
+              begin
+                sect := findstring(i, 3, e);
+                // gets the function to apply log to
+                c := findcoef(i, e); // gets the coefficent
+                N := getnext(i, 5 + length(sect), e, finish);
+                eq.Add(Tfunction.create('LOG', sect, N, c));
+                i := finish;
+              end
+              else if ((e[i + 1] = 'N')) then
+              // checks for LN  in this section
+              begin
+                sect := findstring(i, 2, e);
+                // gets the function to apply LN to
+                c := findcoef(i, e); // gets the coefficent
+                N := getnext(i, 4 + length(sect), e, finish);
+                eq.Add(Tfunction.create('LN', sect, N, c));
+                i := finish;
+              end
+              else
+                result := false;
+              // checks the equation is valid after checking for  ln and log
+            end
+            else if ((e[i + 1] = 'N')) then
+            // checks for LN
+            begin
+              sect := findstring(i, 2, e);
+              // gets the function to apply LN to
+              c := findcoef(i, e); // gets the coefficent
+              N := getnext(i, 4 + length(sect), e, finish);
+              eq.Add(Tfunction.create('LN', sect, N, c));
+              i := finish;
+            end
+            else
+              result := false
+              // checks the equation is valid after checking for  ln
+          end
+          else
+            result := false;
+          // checks the equation is valid if its the wrong length
+
+        end;
+      69: // E
+        begin // must be e^( )
+          sect := findstring(i, 2, e); // gets the function to apply e^ to
+          c := findcoef(i, e); // gets the coefficent
+          N := getnext(i, 4 + length(sect), e, finish);
+          eq.Add(Tfunction.create('E', sect, N, c));
+          i := finish;
+        end;
+      40: // (
+        begin // checks for unacompanied bracets
+          if i > 1 then
+          begin
+            if (e[i - 1] <> '^') and (e[i - 1] <> 'N') and (e[i - 1] <> 'S') and
+              (e[i - 1] <> 'C') and (e[i - 1] <> 'T') and (e[i - 1] <> 'G') then
+            begin
+              // checks its not a beacket for a function
+              sect := findstring(i, 0, e); // gets the function
+              c := findcoef(i, e); // gets the coefficent
+              p := findpower(i + length(sect) + 1, e);
+              N := getnext(i, 2 + length(sect), e, finish);
+              eq.Add(Tfunction.create('(' + floattostr(p) + ')', sect, N, c));
+              i := finish;
+            end;
+          end
+          else // if the bracket is at the start
+          begin
+            sect := findstring(i, 0, e); // gets the function
+            c := findcoef(i, e); // gets the coefficent
+            p := findpower(i + length(sect) + 1, e);
+            N := getnext(i, 2 + length(sect), e, finish);
+            eq.Add(Tfunction.create('(' + floattostr(p) + ')', sect, N, c));
+            i := finish;
+          end;
+        end;
+      88: // X
+        begin // check its not in brakets, then check for exponetial, then for poly
+          j := i;
+          bcount := 0;
+          repeat // loops through and sees if its in a bracket
+            if e[j] = ')' then
+            begin
+              bcount := bcount + 1;
+              j := j - 1;
+            end
+            else if e[j] = '(' then
+            begin
+              bcount := bcount - 1;
+              j := j - 1;
+            end
+            else
+              j := j - 1;
+          until (j = 0) or (bcount = -1);
+          if bcount = -1 then // its in  a bracket
+          begin
+            if j <> 1 then
+            begin
+              pp := 0;
+              while (j > 1) and (((ord(e[j]) <= 57) and (ord(e[j]) >= 48)) or
+                (e[j] = '/') or (e[j] = '.') or (e[j] = '^') or (e[j] = ' ')) do
+              begin
+                if e[j] = '^' then
+                  pp := j;
+                j := j - 1;
+              end;
+              if pp <> 0 then // its an exponential
+              begin
+                if e[pp - 1] <> 'E' then
+                begin
+                  sect := findstring(pp, 1, e);
+                  // gets the function to apply n^ to
+                  c := findcoef(pp, e); // gets the base
+                  N := getnexte(pp, 3 + length(sect), e, finish);
+                  eq.Add(Tfunction.create(floattostr(c), sect, N, 1));
+                  i := finish;
+                end;
+              end;
+
+            end;
+          end
+          else // its not in a bracket    its a poly nomial
+          begin
+            // gets the function to apply x^ to
+            sect := 'X^' + floattostrf(findpower(i, e), ffFixed, 4, 2);
+            c := findcoef(i, e); // gets the coef
+            N := getnext(i, 1, e, finish);
+            eq.Add(Tfunction.create('P', sect, N, c));
+            i := finish;
+          end;
+        end;
+      48 .. 57:
+        begin // find integer
+          j := i;
+          intf := false;
+          intb := false;
+          while (j < length(e)) and
+            (((ord(e[j]) <= 57) and (ord(e[j]) >= 48)) or (e[j] = '.') or
+            (e[j] = ' ')) do
+          begin // checks it runs into an operation first
+            j := j + 1;
+          end;
+          if (e[j] = '+') or (e[j] = '/') or (e[j] = '*') or (e[j] = '-') or
+            (j = length(e) + 1) or (i = length(e)) then
+          begin
+            intf := true;
+            pp := j;
+            if (e[pp] = '/') and
+              ((ord(e[pp + 1]) <= 57) and (ord(e[pp + 1]) >= 48)) then
+            // if its 1/2x dont do it
+              pp := -1;
+          end;
+          if i > 1 then
+          begin
+            if (e[i - 1] = '+') or (e[i - 1] = '/') or (e[i - 1] = '*') or
+              (e[i - 1] = '-') then
+              intb := true;
+          end
+          else
+            intb := true;
+          if (intb = true) and (intf = true) then // its an integer;
+          begin
+            if pp <> -1 then
+            begin
+              if (e[pp] = '+') or (e[pp] = '/') or (e[pp] = '*') or (e[pp] = '-')
+              then
+                c := findcoef(pp, e) // gets the number
+              else
+                c := findcoef(pp + 1, e);
+              sect := floattostrf(c, ffFixed, 4, 2);
+              N := getnext(i, 1, e, finish);
+              eq.Add(Tfunction.create('P', sect, N, c));
+              i := finish;
+            end;
+          end;
+
+        end;
+    end; // end of case
+    // end;
+    i := i + 1;
+  until (i = length(e) + 1);
+end;
+
+function TGraph.runequation(e: tobjectlist<Tfunction>; X: real;
+  pos: integer): real;
+var
+  temp: real;
+  t: string;
+  i, val: integer;
+begin
+  if e[pos].Poly <> nil then // if its not a complex function
+  begin
+    val := 0;
+    for i := 1 to length(e[pos].Func) do
+      val := val + ord(e[pos].Func[i]);
+
+    case val of
+      80: // (p)
+        result := polytoreal(X, e[pos].Poly);
+      // if its a normal poly
+      234: // (sin)
+        result := sin(polytoreal(X, e[pos].Poly));
+      229: // (cos)
+        result := cos(polytoreal(X, e[pos].Poly));
+      227: // (tan)
+        begin
+          temp := cos(polytoreal(X, e[pos].Poly));
+          if temp <> 0 then
+            result := (sin(polytoreal(X, e[pos].Poly)) / temp);
+        end;
+      230: // cot
+        begin
+          temp := sin(polytoreal(X, e[pos].Poly));
+          if temp <> 0 then
+            result := (cos(polytoreal(X, e[pos].Poly)) / temp);
+        end;
+      219: // sec
+        begin
+          temp := cos(polytoreal(X, e[pos].Poly));
+          if temp <> 0 then
+            result := (1 / temp);
+        end;
+      365: // cosec
+        begin
+          temp := sin(polytoreal(X, e[pos].Poly));
+          if temp <> 0 then
+            result := (1 / temp);
+        end;
+      124: // |
+        result := (abs(polytoreal(X, e[pos].Poly)));
+      226: // log
+        begin
+          temp := (polytoreal(X, e[pos].Poly));
+          if temp > 0 then
+            result := (log10(temp))
+          else
+            result := -1000;
+        end;
+      154: // ln
+        begin
+          temp := (polytoreal(X, e[pos].Poly));
+          if temp > 0 then
+            result := (ln(temp))
+          else
+            result := -1000;
+        end;
+    end;
+    // ifs its  or n^x
+    if (ord(e[pos].Func[1]) <= 57) and (ord(e[pos].Func[1]) >= 48) then
+    begin
+      result := power(strtofloat(e[pos].Func), polytoreal(X, e[pos].Poly));
+    end;
+    if e[pos].Func[1] = 'E' then
+    begin
+      result := exp(polytoreal(X, e[pos].Poly));
+    end;
+    // ifs its (.....)^n
+    if e[pos].Func[1] = '(' then
+    begin
+      t := '';
+      for i := 2 to length(e[pos].Func) - 1 do
+        t := t + e[pos].Func[i];
+      if polytoreal(X, e[pos].Poly) >= 0 then
+      // makes sure non integer coefficents work
+        result := power(polytoreal(X, e[pos].Poly), strtofloat(t))
+      else
+      begin
+        temp := strtofloat(t) - int(strtofloat(t));
+        if temp = 0 then
+          result := power(polytoreal(X, e[pos].Poly), strtofloat(t))
+        else
+          result := -1000000; // so it doesnt appear
+      end;
+
+    end;
+    if pos = 0 then
+    begin
+      if ((e[pos].Poly[0].power <> 0) and (e[pos].Poly.count = 1)) or (e[pos].Poly.Count<>1) then
+      // makes sure cefficents dont work on integers
+        result := result * e[pos].coef
+    end  // makes sure coef counts of its the start
+    else if (e[pos - 1].Next = '/') or (e[pos - 1].Next = '*') and
+      ((e[pos].Poly[0].power <> 0) and (e[pos].Poly.count = 1)) then
+      result := result * e[pos].coef // or if its / or *
+    else if (e[pos].Poly[0].power <> 0) and (e[pos].Poly.count = 1) then
+      result := result * e[pos].coef;
+    // other wise multiply by the abs value so + isnt counted twice
+  end
+  else // if its a complex function
+  begin
+    result := runequation(e[pos].Complextfunc, X, 0);  //gets the value of the complex function
+
+    val := 0;
+    for i := 1 to length(e[pos].Func) do
+      val := val + ord(e[pos].Func[i]);
+
+    case val of
+      // if its a normal poly
+      234: // (sin)
+        result := sin(result);
+      229: // (cos)
+        result := cos(result);
+      227: // (tan)
+        begin
+          temp := cos(result);
+          if temp <> 0 then
+            result := (sin(result) / temp);
+        end;
+      230: // cot
+        begin
+          temp := sin(result);
+          if temp <> 0 then
+            result := (cos(result) / temp);
+        end;
+      219: // sec
+        begin
+          temp := cos(result);
+          if temp <> 0 then
+            result := (1 / temp);
+        end;
+      365: // cosec
+        begin
+          temp := sin(result);
+          if temp <> 0 then
+            result := (1 / temp);
+        end;
+      124: // |
+        result := (abs(result));
+      226: // log
+        begin
+          temp := (result);
+          if temp > 0 then
+            result := (result)
+          else
+            result := -1000;
+        end;
+      154: // ln
+        begin
+          temp := result;
+          if temp > 0 then
+            result := (ln(temp))
+          else
+            result := -1000;
+        end;
+    end;
+    // ifs its  or n^x
+    if (ord(e[pos].Func[1]) <= 57) and (ord(e[pos].Func[1]) >= 48) then
+    begin
+      result := power(strtofloat(e[pos].Func), result);
+    end;
+    if e[pos].Func[1] = 'E' then
+    begin
+      result := exp(result);
+    end;
+    // ifs its (.....)^n
+    if e[pos].Func[1] = '(' then
+    begin
+      t := '';
+      for i := 2 to length(e[pos].Func) - 1 do
+        t := t + e[pos].Func[i];
+      if result>= 0 then
+      // makes sure non integer coefficents work
+        result := power(result, strtofloat(t))
+      else
+      begin
+        temp := strtofloat(t) - int(strtofloat(t));
+        if temp = 0 then
+          result := power(result, strtofloat(t))
+        else
+          result := -1000000; // so it doesnt appear
+      end;
+    end;
+    if pos = 0 then
+      result := result * e[pos].coef
+      // makes sure coef counts of its the start
+    else if (e[pos - 1].Next = '/') or (e[pos - 1].Next = '*') then
+      result := result * e[pos].coef // or if its / or *
+    else
+      result := result * e[pos].coef;
+    // other wise multiply by the abs value so + isnt counted twice
+
+  end;
+
+  if pos = 0 then
+  begin
+    case e[pos].Next of // adds,subs,multi,divs it onto the next function
+      '+':
+        result := result + runequation(e, X, pos + 1);
+      '-':
+        result := result + runequation(e, X, pos + 1);  //as -ve is picked up by coefficent
+      '*':
+        result := result * runequation(e, X, pos + 1);
+      '/':
+        begin
+          temp := runequation(e, X, pos + 1);
+          if temp <> 0 then // makes sure it doesnt divide by 0
+            result := result / temp
+          else
+            result := -10000;
+          if e[pos + 1].Next <> '#' then
+          // makes it so it skips one if it divided
+          begin
+            case e[pos + 1].Next of
+              // adds,subs,multi,divs it onto the next function
+              '+':
+                result := result + runequation(e, X, pos + 2);
+              '-':
+                result := result - runequation(e, X, pos + 2);
+              '*':
+                result := result * runequation(e, X, pos + 2);
+              '/':
+                begin
+                  temp := runequation(e, X, pos + 2);
+                  if temp <> 0 then // makes sure it doesnt divide by 0
+                    result := result / temp
+                  else
+                    result := -10000;
+                end;
+            end;
+
+          end;
+
+        end;
+    end;
+
+  end;
+
+  if pos <> 0 then
+  begin
+    if e[pos - 1].Next = '/' then
+    begin
+
+    end
+    else if e[pos].Next <> '#' then // is the recursive stop
+    begin
+      case e[pos].Next of // adds,subs,multi,divs it onto the next function
+        '+':
+          result := result + runequation(e, X, pos + 1);
+        '-':
+          result := result - runequation(e, X, pos + 1);
+        '*':
+          result := result * runequation(e, X, pos + 1);
+        '/':
+          begin
+            temp := runequation(e, X, pos + 1);
+            if temp <> 0 then // makes sure it doesnt divide by 0
+              result := result / temp
+            else
+              result := -10000;
+          end;
+
+      end;
+    end;
+  end;
+
+end;
+
+procedure TGraph.draw(e: string; yc: ycoef);
+var
+  Yco, Xco, nxco, nyco, colour: integer;
+  xval, Yval, nxval, nyval, TempY: real;
+  valid: boolean;
+begin
+  if eq <> nil then
+  begin
+    eq.free;
+    eq := nil;
+  end;
+  eq := tobjectlist<Tfunction>.create;
+  nxco := 0;
+  colour := 0;
+  lines := lines + 1;
+  // counts the number of lines added
+  valid := decodeequation(e, eq);
+  /// ///
+  if valid = true then // only draws line if equation is valid
+  begin
+    for Xco := 1 to W - 1 do // CYCLES THROUGH ALL THE X PIXELS
+    begin
+      if nxco = 0 then // works out pos 1
+      begin
+        xval := minx + (Xco - 1) * (20 / W);
+        // this turns the graph coordinate to the shown coordinate
+        Yval := runequation(eq, xval, 0);
+        /// ///
+        // this is the lines function
+        Yval := (Yval - yc[2]) / yc[1]; // adjusts it based on the y input
+        TempY := Xax - Yval * (H div 20);
+        // this turns the ys shown value to the unrounded graph coordinate
+        Yco := round(TempY); // temp y is so i round the entire value.
+
+        nxval := minx + (nxco) * (20 / W);
+        nyval := runequation(eq, nxval, 0);;
+        /// //
+        nyval := (nyval - yc[2]) / yc[1];
+        nxco := Xco + 1;
+        TempY := Xax - nyval * (H div 20);
+        nyco := round(TempY);
+      end
+      else
+      begin
+        // shifts the line on to start at the next point
+        Yval := nyval;
+        Yco := nyco;
+        if Xco <> (W - 1) then
+        // checks you arent dealing with the last point.
+        begin
+          nxco := nxco + 1;
+          nxval := minx + (nxco) * (20 / W);
+          nyval := runequation(eq, nxval, 0);
+          nyval := (nyval - yc[2]) / yc[1];
+          TempY := Xax - nyval * (H div 20);
+          nyco := round(TempY);
+        end;
+      end;
+      if (Yco <= H) and (Yco >= 0) and (nyco <= H) and (nyco >= 0) then
+      // this makes sure the line is in bound
+      begin
+        with G.canvas do
+        begin
+          colour := colour + 511;
+          pen.color := colour;
+          pen.width := 2;
+          moveto(Xco, Yco);
+          lineto(nxco, nyco);
+        end;
+      end;
+    end;
+  end;
+  // add a reask if the equation is invalid
+end;
+
+destructor TGraph.free;
+var
+  i: integer;
+begin
+  eq.free;
+  G.free;
+  G := nil;
+  for i := 1 to 21 do
+  begin
+    if X[i] <> nil then
+    begin
+      X[i].free;
+      X[i] := nil;
+    end;
+  end;
+  for i := 1 to 21 do
+  begin
+    if Y[i] <> nil then
+    begin
+      Y[i].free;
+      Y[i] := nil;
+    end;
+  end;
+end;
+
+constructor TGraph.create(Func: string; yc: ycoef; card: tpanel;
+  wid, hei, t, left: integer);
+// all functions will be without y=
+var
+  i: integer;
+
+begin
+  W := wid;
+  H := hei;
+  L := left;
+  Top := t;
+  lines := 0;
+  Xax := H div 2;
+  // coords of the xaxis
+  Yax := W div 2; // coors of y axis
+  G := TImage.create(card);
+  G.Parent := card;
+  G.height := H;
+  G.width := W;
+  G.left := L;
+  G.Top := Top;
+  G.Visible := true;
+
+  // creates the paintbox
+  with G.canvas do
+  begin
+    pen.color := clblack;
+    pen.width := 1;
+    moveto(0, G.height div 2);
+    lineto(W, G.height div 2);
+    moveto(G.width div 2, 0);
+    lineto(G.width div 2, H);
+  end;
+  minx := -10;
+  miny := -10;
+  // minimum y and x shown on axis;                change it move
+  for i := 1 to 21 do // change 21 to variable if axis change size
+  begin
+    if ((W < 190) and (abs(i) mod 2 = 1)) or (W >= 190) then
+    begin
+      X[i] := tlabel.create(card);
+      X[i].Font.Size := H div 100 + 4;
+      X[i].height := 6;
+      X[i].caption := inttostr(i - 1 + minx);
+      X[i].left := round(L - (X[i].width div 2) + (i - 1) * (W / 20));
+      // offset - 1/2 width
+      X[i].Top := Top + Xax;
+      X[i].Visible := true;
+      X[i].Parent := card;
+    end;
+
+  end;
+  for i := 1 to 21 do
+  // change 21 to variable if axis change size
+  begin
+    if (i <> 11) and (((H < 140) and (abs(i) mod 2 = 1)) or (H >= 140)) then
+    // doesnt make a second 0, or odd if its a small graph
+    begin
+      Y[i] := tlabel.create(card);
+      Y[i].Font.Size := H div 100 + 4;
+      Y[i].caption := inttostr(1 - i - miny);
+      Y[i].left := L + Yax;
+      // offset - 1/2 width
+      Y[i].Top := round(Top - (Y[i].height div 2) + (i - 1) * (H / 20));
+      Y[i].Visible := true;
+      Y[i].Parent := card;
+
+    end;
+  end;
+  if Func <> '-' then
+    draw(Func, yc);
+end;
+
+{ tpoly }
+
+constructor tpoly.create(c, p: real);
+begin
+  coefficent := c;
+  power := p;
+end;
+
+{ Tfunction }
+
+constructor Tfunction.create(funct, e: string; N: char; c: real);
+var
+  valid: boolean;
+begin
+  Next := N;
+  Func := funct;
+  coef := c;
+
+  if ispolynomial(e) = true then
+    Poly := stringtopoly(e)
+  else
+  begin
+    Complextfunc := tobjectlist<Tfunction>.create;
+    valid := decodeequation(e, Complextfunc);
+  end;
+end;
+
+function Tfunction.stringtopoly(equation: string): tobjectlist<tpoly>;
+// takes a string and outputs it as an array of polynomials
+var
+  i, xcount: integer;
+  c, p, temp: real;
+begin
+  result := tobjectlist<tpoly>.create;
+  xcount := 0;
+  for i := 1 to length(equation) do // to see if its just a integer
+  begin
+    if equation[i] = 'X' then
+      xcount := xcount + 1;
+  end;
+  if xcount = 0 then
+    result.Add(tpoly.create(removex(equation), 0));
+
+  for i := 1 to length(equation) do
+  begin
+    if equation[i] = 'X' then
+    begin
+      c := findcoef(i, equation); // gets the coefficent
+      p := findpower(i, equation); // gets the power
+      result.Add(tpoly.create(c, p));
+      temp := removex(equation);
+      // for getting the interger
+      if temp <> 0 then
+        result.Add(tpoly.create(temp, 0))
+        // adds the integer to the poly list
+    end;
+  end;
+end;
+
+end.

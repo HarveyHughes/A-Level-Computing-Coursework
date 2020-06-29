@@ -1,0 +1,150 @@
+unit UOptionsmenu;
+
+interface
+
+
+uses
+ Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  System.DateUtils,
+  System.Classes, Vcl.Graphics,udeckpicker,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ExtCtrls, generics.collections,
+  Vcl.StdCtrls;
+
+ type
+ Optionsmenu=class
+    Lables: tobjectlist<tlabel>;
+    Answer:tcheckbox;
+    Edits:tobjectlist<tedit>;
+    buttons:tobjectlist<tbutton>;
+    constructor create(panel:tpanel);
+    Procedure CreateLabel(panel:tpanel;Top, left, Width, height, size: integer;
+      caption: string; ali: char);
+       Procedure CreateButton(Top, left, Width, height: integer; caption: string;
+      click: tnotifyevent);
+    Procedure CreateEdit(panel: tpanel; Top, left, Width, height: integer;
+      caption: string; ali: char);
+     destructor free;
+     procedure updateanswer(sender:tobject);
+
+ end;
+
+ function getanswer:boolean;
+
+implementation
+
+uses UDM;
+
+function getanswer: boolean;
+begin
+  with dm.Achievementset do
+  begin
+    Close;
+    CommandText := ('Select Answer from Achievements ');
+    open;
+    result := FieldValues['Answer']
+  end;
+end;
+
+
+{ mainstats }
+
+constructor optionsmenu.create(panel: tpanel);
+var
+numbers:ratingstats;
+prog,cards,correctstreak,currentstreak,badges:string;
+an:boolean;
+begin
+
+lables:=tobjectlist<tlabel>.create;
+buttons:=tobjectlist<tbutton>.create;
+edits:=tobjectlist<tedit>.create;
+an:=getanswer;
+createlabel(panel,50,30,60,20,10,'Do you want to give answers?','l');
+  answer := tcheckbox.create(panel);
+  answer.Parent := panel;
+  answer.left := 250;
+  answer.top := 50;
+  answer.Height := 20;
+  answer.width := 20;
+  answer.caption := '';
+  answer.Visible := true;
+  answer.checked := an;
+  answer.OnClick:=updateanswer;
+
+end;
+
+procedure Optionsmenu.CreateButton(Top, left, Width, height: integer;
+  caption: string; click: tnotifyevent);
+begin
+
+end;
+
+procedure Optionsmenu.CreateEdit(panel: tpanel; Top, left, Width,
+  height: integer; caption: string; ali: char);
+begin
+
+end;
+
+procedure optionsmenu.CreateLabel(panel:tpanel ;Top, left, Width, height, size: integer;
+  caption: string; ali: char);
+var
+  l: tlabel;
+begin
+  l := tlabel.create(panel);
+  Lables.add(l);
+  l.Parent := panel;
+  l.Top := Top;
+  l.Font.Size:=size;
+  if ali = 'l' then
+  begin
+    l.left := left;
+    l.Width := Width;
+    l.height := height;
+    l.caption := caption;
+  end
+  else if ali = 'c' then
+  begin
+    l.caption := caption;
+    l.left := (panel.Width - l.Width) div 2;
+  end;
+  l.Visible := true;
+end;
+
+destructor optionsmenu.free;
+begin
+  if lables <> nil then
+  begin
+    lables.free;
+    lables := nil;
+  end;
+   if buttons <> nil then
+  begin
+    buttons.free;
+    buttons := nil;
+  end;
+   if edits <> nil then
+  begin
+    edits.free;
+    edits := nil;
+  end;
+
+end;
+
+procedure Optionsmenu.updateanswer(sender: tobject);
+var
+an:boolean;
+begin
+an:=(sender as tcheckbox).Checked;
+with dm.Achievementset do
+  begin
+    Close;
+    CommandText := ('Select Answer from Achievements ');
+    open;
+    edit;
+    FieldValues['Answer']    :=an;
+    post;
+    close;
+  end;
+end;
+
+end.

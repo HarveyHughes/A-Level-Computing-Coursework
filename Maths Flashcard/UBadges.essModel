@@ -1,0 +1,10 @@
+[Box: ::UBadges - ::UBadges::TBadges]
+X=32
+Y=53
+
+[Diagram: ::UBadges]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=1
+

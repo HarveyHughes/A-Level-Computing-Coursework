@@ -1,0 +1,18 @@
+[Box: ::Ugraph - ::Ugraph::Tfunction]
+X=225
+Y=40
+
+[Box: ::Ugraph - ::Ugraph::TGraph]
+X=20
+Y=40
+
+[Box: ::Ugraph - ::Ugraph::tpoly]
+X=230
+Y=215
+
+[Diagram: ::Ugraph]
+OffsetX=0
+OffsetY=0
+Visibility=0
+ShowAssoc=0
+
